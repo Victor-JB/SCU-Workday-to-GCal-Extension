@@ -7,4 +7,3 @@ async function fetchData() {
     document.getElementById("latestBy").innerHTML=record.data[0].latestBy;
     document.getElementById("deathNew").innerHTML=record.data[0].deathNew;
 }
-fetchData();
