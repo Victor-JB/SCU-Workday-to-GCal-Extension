@@ -1,9 +1,7 @@
 
 chrome.runtime.sendMessage({ action: "showPopup" });
+console.log("should be here...");
 
-// if (window.location.href.includes("specific-criteria")) {
-//  console.log("We're on the page??");
-// }
 
 // Function to handle button clicks
 function buttonClicked() {
@@ -11,12 +9,11 @@ function buttonClicked() {
     // Perform actions or send messages here
 }
 
-// Add a listener for buttons with a specific class
-document.addEventListener('DOMContentLoaded', () => {
-    const buttons = document.querySelectorAll('.WCSK WBSK WKQK WNQK WLQK');
-    buttons.forEach(button => {
-        button.addEventListener('click', buttonClicked);
-    });
+const buttons = document.querySelectorAll('WCSK WBSK WKQK WNQK WLQK');
+console.log("query selecting and stuff...");
+console.log("here buttons: ", buttons);
+buttons.forEach(button => {
+    button.addEventListener('click', buttonClicked);
 });
 
 // Optional: Handle dynamically added buttons
