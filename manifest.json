@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Auto Pop-up Extension",
-  "description": "latest covid data of UK",
-  "author": "Sampurna Chapagain",
+  "description": "Easily add Workday courses to Google Calendar",
+  "author": "SCU Students Against Workday",
   "version": "1.0",
   "permissions": ["activeTab", "scripting", "tabs"],
   "host_permissions": ["https://*.myworkday.com/scu/*"],

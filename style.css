@@ -1,0 +1,14 @@
+/* there is a max extension width, smth like 800 */
+body {
+    min-width: 400px;
+}
+
+#drop-area {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  text-align: center;
+}
+
+#drop-area.highlight {
+  border-color: blue;
+}
