@@ -9,7 +9,7 @@
   "content_scripts": [
     {
       "matches": ["https://*.myworkday.com/scu/d/task/2998$*"],
-      "js": ["content-script.js"]
+      "js": ["content.js"]
     }
   ],
   "action": {
