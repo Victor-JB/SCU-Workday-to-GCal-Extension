@@ -8,90 +8,49 @@
 console.log("XLSX version:", XLSX.version);
 
 // -------------------------------------------------------------------------- //
-// Function to handle drag-over event
-function handleDragOver(event) {
-    event.preventDefault(); // Prevent default behavior
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "copy"; // Indicate that a copy operation is allowed
-}
-
-// -------------------------------------------------------------------------- //
-// Function to process the uploaded `.xlsx` file and convert it to JSON
-async function processXlsx(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: "array" });
-
-            // Assuming the first sheet contains the data
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-
-            // Convert the sheet to JSON
-            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            // Display the JSON or pass it to the next process
-            console.log("Converted JSON:", json);
-            alert("File processed successfully!");
-
-            // Optional: You can also pass this JSON to content.js or handle it further
-        } catch (error) {
-            console.error("Error processing the file:", error);
-            alert("An error occurred while processing the file. Please try again.");
-        }
-    };
-
-    reader.onerror = () => {
-        console.error("Error reading the file.");
-        alert("Could not read the file. Please try again.");
-    };
-
-    reader.readAsArrayBuffer(file); // Read the file as ArrayBuffer
-}
-
-// -------------------------------------------------------------------------- //
-// Function to handle file drop
-function handleFileDrop(event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const dropArea = document.getElementById("drop-area");
-    dropArea.classList.remove("highlight");
-
-    const files = event.dataTransfer.files;
-    const validFiles = Array.from(files).filter(
-        (file) =>
-            file.type ===
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-
-    if (validFiles.length === 0) {
-        alert("Only .xlsx files are allowed!");
-        return;
-    }
-
-    validFiles.forEach((file) => {
-        processXlsx(file);
-    });
-}
-
-// -------------------------------------------------------------------------- //
-// Add event listeners to the DOM
 document.addEventListener("DOMContentLoaded", () => {
-    const dropArea = document.getElementById("drop-area");
-    if (dropArea) {
-        dropArea.addEventListener("dragover", handleDragOver);
-        dropArea.addEventListener("dragenter", () =>
-            dropArea.classList.add("highlight")
-        );
-        dropArea.addEventListener("dragleave", () =>
-            dropArea.classList.remove("highlight")
-        );
-        dropArea.addEventListener("drop", handleFileDrop);
-    } else {
-        console.error("Drop area not found!");
-    }
+  document.getElementById("fileUpload").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
 
-    const fileInput = document.getElementById("fileInput");
-    if (file
+      try {
+          // Convert the file to JSON
+          const jsonData = await convertXlsxToJson(file);
+          console.log("File converted to JSON:", jsonData);
+
+          // Validate JSON
+          if (!validateJson(jsonData)) {
+              alert("Invalid file contents.");
+              return;
+          }
+
+          // Send JSON to background.js
+          chrome.runtime.sendMessage({ action: "processJson", data: jsonData }, (response) => {
+              if (response.success) {
+                  alert("Calendar events uploaded successfully!");
+              } else {
+                  console.error("Error uploading events:", response.error);
+                  alert("Failed to upload events.");
+              }
+          });
+
+      } catch (error) {
+          console.error("Error processing file:", error);
+          alert("An error occurred while processing the file.");
+      }
+  });
+});
+
+// -------------------------------------------------------------------------- //
+async function convertXlsxToJson(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+}
+
+// -------------------------------------------------------------------------- //
+function validateJson(jsonData) {
+    // Add your validation logic here
+    return Array.isArray(jsonData) && jsonData.length > 0;
+}
