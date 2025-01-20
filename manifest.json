@@ -14,7 +14,11 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "test-icon.png"
+    "default_icon": {
+            "16": "test-icon.png",
+            "48": "test-icon.png",
+            "128": "test-icon.png"
+        }
   },
   "background": {
     "service_worker": "background.js"

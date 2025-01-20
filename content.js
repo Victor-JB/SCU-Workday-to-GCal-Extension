@@ -11,6 +11,7 @@ if (document.readyState === 'loading') {
 }
 
 // -------------------------------------------------------------------------- //
+// making sure button stays loaded on page regardless of any action
 function afterDOMLoaded() {
     console.log("DOM is fully loaded, ready to interact with page elements");
 
@@ -95,6 +96,7 @@ function handleDownloadClick() {
                 console.log("Download button found in popup. Clicking to download file...");
                 popupObserver.disconnect(); // Stop observing once the button is found
                 downloadButton.click(); // Simulate click to trigger the download
+
                 // NEED TO CHECK WHEN DOWNLOAD IS FINISHED SO AS TO KNOW WHEN TO OPEN POPUP
                 chrome.runtime.sendMessage({ action: "showPopup" });
             }
@@ -149,6 +151,7 @@ function processEvents(events) {
             description: event.description || "No description provided.",
             start: { dateTime: new Date(event.start).toISOString(), timeZone: 'America/New_York' },
             end: { dateTime: new Date(event.end).toISOString(), timeZone: 'America/New_York' },
+            // make sure is in student's valid timezone
         };
     }).filter(Boolean);
 
