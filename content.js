@@ -14,64 +14,99 @@ if (document.readyState === 'loading') {
 // making sure button stays loaded on page regardless of any action
 function afterDOMLoaded() {
     console.log("DOM is fully loaded, ready to interact with page elements");
+    injectFallbackCSS();
+    monitorDOMChanges();
+}
 
-    const observeTarget = document.body;
+// -------------------------------------------------------------------------- //
+// Function to find an element by attribute and value
+function findElementByAttribute(attribute, value, root = document) {
+    return root.querySelector(`[${attribute}="${value}"]`);
+}
 
-    const observer = new MutationObserver((mutations) => {
-        const buttonBar = document.querySelector('ul[data-automation-id="buttonBar"]');
+// -------------------------------------------------------------------------- //
+// Function to add a MutationObserver for dynamic DOM updates
+function monitorDOMChanges() {
+  const observeTarget = document.body;
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        // Recheck and inject the button if necessary
+        const buttonBar = findElementByAttribute('data-automation-id', 'buttonBar');
+        if (!buttonBar) throw new Error("The button bar could not be found!");
+        
         if (buttonBar && !document.getElementById("wd-MultiParameterButton-56$newbutton")) {
-            console.log("Button bar detected or re-rendered. Re-adding new button...");
-            injectNewButton(buttonBar);
+          console.log("Button bar detected or re-rendered. Re-adding new button...");
+          injectNewButton(buttonBar);
         }
+      }
     });
+  });
 
+  try {
+      observer.observe(observeTarget, {
+          childList: true,
+          subtree: true,
+      });
+      console.log("MutationObserver started.");
+  } catch (error) {
+      console.error("Failed to start the MutationObserver:", error);
+  }
+}
+
+// -------------------------------------------------------------------------- //
+// Function to dynamically inject a button into a button bar
+function injectNewButton(buttonBar) {
     try {
-        observer.observe(observeTarget, {
-            childList: true,
-            subtree: true,
-        });
-        console.log("MutationObserver started.");
+        // Clone an existing button to ensure style and structure match
+        const existingButton = buttonBar.querySelector('button');
+        if (!existingButton) throw new Error("No existing button found!");
+
+        // Clone the existing button
+        const newButton = existingButton.cloneNode(true);
+
+        // Update the cloned button's attributes
+        newButton.id = "wd-MultiParameterButton-56$newbutton";
+        newButton.title = "Add to Google Calendar";
+        newButton.querySelector('span:last-child').textContent = "Add to Google Calendar";
+
+        // Add a click event listener to the new button
+        newButton.addEventListener("click", handleDownloadClick);
+
+        // Create a new list item to wrap the button
+        const newListItem = document.createElement("li");
+        newListItem.className = existingButton.closest('li').className;
+        newListItem.appendChild(newButton);
+
+        // Append the new list item to the button bar
+        buttonBar.appendChild(newListItem);
+
+        console.log("New button successfully added!");
     } catch (error) {
-        console.error("Failed to start the MutationObserver:", error);
+        console.error("Error injecting new button:", error);
     }
 }
 
 // -------------------------------------------------------------------------- //
-function injectNewButton(buttonBar) {
-    try {
-        const newListItem = document.createElement("li");
-        newListItem.className = "WBMM";
-
-        const newButton = document.createElement("button");
-        newButton.className = "WKTM WOTM WEAO WF5 WGSM";
-        newButton.id = "wd-MultiParameterButton-56$newbutton"; // Unique ID
-        newButton.setAttribute("data-automation-activebutton", "true");
-        newButton.setAttribute("data-automation-id", "wd-MultiParameterButton");
-        newButton.setAttribute("data-metadata-id", "56$newbutton");
-        newButton.setAttribute("data-automation-button-type", "AUXILIARY");
-        newButton.setAttribute("title", "Add to Google Calendar");
-        newButton.setAttribute("type", "button");
-
-        const span1 = document.createElement("span");
-        span1.className = "WAUM WLTM";
-
-        const span2 = document.createElement("span");
-        span2.className = "WMTM";
-        span2.setAttribute("title", "Add to Google Calendar");
-        span2.textContent = "Add to Google Calendar"; // Button text
-
-        newButton.appendChild(span1);
-        newButton.appendChild(span2);
-
-        newButton.addEventListener("click", handleDownloadClick);
-
-        newListItem.appendChild(newButton);
-        buttonBar.appendChild(newListItem);
-
-        console.log("New download button successfully added!");
-    } catch (error) {
-        console.error("An error occurred while injecting the new button:", error);
-    }
+// Function to inject fallback CSS for the button
+function injectFallbackCSS() {
+    const style = document.createElement('style');
+    style.textContent = `
+        #wd-MultiParameterButton-56$newbutton {
+            background-color: #0073e6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #wd-MultiParameterButton-56$newbutton:hover {
+            background-color: #005bb5;
+        }
+    `;
+    document.head.appendChild(style);
+    console.log("Fallback CSS injected.");
 }
 
 // -------------------------------------------------------------------------- //
