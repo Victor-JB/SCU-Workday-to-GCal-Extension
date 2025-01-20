@@ -11,10 +11,19 @@ if (document.readyState === 'loading') {
 }
 
 // -------------------------------------------------------------------------- //
-// making sure button stays loaded on page regardless of any action
+// Initialization
 function afterDOMLoaded() {
     console.log("DOM is fully loaded, ready to interact with page elements");
+
+    // Inject fallback CSS
     injectFallbackCSS();
+
+    const bar = injectBackupBar();
+    if (!bar) {
+      chrome.runtime.sendMessage({ action: "showPopup" });
+    }
+
+    // Monitor DOM changes
     monitorDOMChanges();
 }
 
@@ -33,11 +42,25 @@ function monitorDOMChanges() {
       if (mutation.type === 'childList') {
         // Recheck and inject the button if necessary
         const buttonBar = findElementByAttribute('data-automation-id', 'buttonBar');
-        if (!buttonBar) throw new Error("The button bar could not be found!");
-        
-        if (buttonBar && !document.getElementById("wd-MultiParameterButton-56$newbutton")) {
-          console.log("Button bar detected or re-rendered. Re-adding new button...");
-          injectNewButton(buttonBar);
+        const customBar = document.getElementById("custom-bar");
+
+        if (buttonBar) {
+          if (customBar) {
+              // Hide the custom bar if the button is found
+              customBar.remove();
+              console.log("Button found, hiding custom bar.");
+          }
+
+            console.log("Button bar found or re-rendered. Ensuring new button is present...");
+            if (!document.getElementById("wd-MultiParameterButton-56$newbutton")) {
+                injectNewButton(buttonBar);
+            }
+        } else if (customBar) {
+            // Handle missing buttonBar by injecting a fallback button
+            console.warn("buttonBar not found. Displaying fallback button if possible...");
+            customBar.classList.add("visible");
+        } else {
+          console.error("Neither button bar nor custom bar was found...");
         }
       }
     });
@@ -88,26 +111,59 @@ function injectNewButton(buttonBar) {
 }
 
 // -------------------------------------------------------------------------- //
-// Function to inject fallback CSS for the button
-function injectFallbackCSS() {
-    const style = document.createElement('style');
-    style.textContent = `
-        #wd-MultiParameterButton-56$newbutton {
-            background-color: #0073e6;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            font-size: 14px;
-            border-radius: 4px;
-            cursor: pointer;
+function injectBackupBar() {
+    try {
+        // Locate the app bar container
+        const appBarContainer = document.getElementById("app-chrome-container");
+        if (!appBarContainer) {
+            console.warn("App bar container not found.");
+            return;
         }
-        #wd-MultiParameterButton-56$newbutton:hover {
-            background-color: #005bb5;
+
+        // Check if the bar already exists
+        let newBar = document.getElementById("custom-bar");
+        if (!newBar) {
+            // Create the bar if it doesn't exist
+            newBar = document.createElement("div");
+            newBar.id = "custom-bar";
+            newBar.textContent = "Custom Bar - Button Missing"; // Placeholder text
+            appBarContainer.parentNode.insertBefore(newBar, appBarContainer.nextSibling);
+            console.log("Custom bar injected below the app bar.");
+        }
+
+        return newBar;
+    } catch (error) {
+        console.error("Error injecting the custom bar:", error);
+    }
+}
+
+// -------------------------------------------------------------------------- //
+// Function to inject fallback CSS
+function injectFallbackCSS() {
+    const style = document.createElement("style");
+    style.textContent = `
+        #custom-bar {
+            position: relative;
+            width: 100%;
+            height: 50px;
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            color: #333;
+            font-size: 16px;
+            visibility: hidden; /* Initially hidden */
+        }
+        #custom-bar.visible {
+            visibility: visible; /* Make the bar visible when needed */
         }
     `;
     document.head.appendChild(style);
     console.log("Fallback CSS injected.");
 }
+
 
 // -------------------------------------------------------------------------- //
 /*
