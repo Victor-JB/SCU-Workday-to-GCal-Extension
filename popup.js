@@ -16,10 +16,18 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             // Convert the file to JSON
             const jsonData = await convertXlsxToJson(file);
-            console.log("File converted to JSON:", jsonData);
+            // console.log("File converted to JSON:", jsonData);
 
             try {
-                const formatted_ics = processCourses(jsonData);
+                const icsContent = generateICS(jsonData);
+                console.log("Generated ICS!!!:", icsContent);
+                // To save as a file in a browser (if using a web app):
+                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'courses.ics';
+                link.click();
+
             } catch (parseError) {
                 console.error("Error parsing JSON:", parseError);
                 return;
@@ -50,9 +58,9 @@ async function convertXlsxToJson(file) {
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
-    console.log("Sheet name:", sheetName);
-    console.log("Sheet range:", sheet['!ref']);
-    console.log("Raw sheet content:", sheet);
+    // console.log("Sheet name:", sheetName);
+    // console.log("Sheet range:", sheet['!ref']);
+    // console.log("Raw sheet content:", sheet);
 
     const rows = [];
 
@@ -76,32 +84,47 @@ async function convertXlsxToJson(file) {
 }
 
 // -------------------------------------------------------------------------- //
-// Helper function to format date into ICS-friendly format
-function formatTime(dateString, timeString) {
-    const [hour, minute] = timeString.split(':').map((t) => parseInt(t, 10));
-    const date = new Date(dateString);
-    date.setHours(hour, minute, 0, 0);
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0];
+function filterEnrolledCourses(data) {
+    const enrolledSectionsIndex = data.findIndex(row => row.E === "Enrolled Sections");
+    const droppedSectionsIndex = data.findIndex(row => row.E === "Dropped/Withdrawn Sections");
+
+    // Extract rows between "Enrolled Sections" and "Dropped/Withdrawn Sections"
+    const enrolledCourses = data.slice(enrolledSectionsIndex + 1, droppedSectionsIndex);
+
+    // Filter only "Registered" courses
+    return enrolledCourses.filter(row => row.I === "Registered");
 }
 
-// Helper function to map day abbreviations for ICS recurrence rules
-function mapDaysToICS(days) {
-    const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
-    return days.split(' ').map((day) => dayMap[day]).join(',');
+function formatDate(serialDate) {
+    const epoch = new Date(1899, 11, 30).getTime(); // Excel epoch (adjusted)
+    const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
+    return date.toISOString().split("T")[0]; // YYYY-MM-DD format
 }
 
-// Helper function to create ICS event format
-function createICSEvent(course, timeLocation, startDate, endDate) {
-    const [days, times, location] = timeLocation.split('|').map((part) => part.trim());
-    const [startTime, endTime] = times.split('-').map((time) => time.trim());
+function createICSEvent(course) {
+    const courseName = course.B;
+    const meetingPattern = course.H.split('|').map(part => part.trim());
+    const days = meetingPattern[0];
+    const times = meetingPattern[1];
+    const location = meetingPattern[2];
+    const startDate = formatDate(course.K);
+    const endDate = formatDate(course.L);
 
-    const dtStart = formatTime(startDate, startTime);
-    const dtEnd = formatTime(startDate, endTime);
-    const recurrenceRule = `RRULE:FREQ=WEEKLY;UNTIL=${endDate.replace(/-/g, '')}T235959Z;BYDAY=${mapDaysToICS(days)}`;
+    const [startTime, endTime] = times.split('-').map(time => time.trim());
+    const recurrenceRule = `RRULE:FREQ=WEEKLY;UNTIL=${endDate.replace(/-/g, '')}T235959Z;BYDAY=${days
+        .split(' ')
+        .map(day => {
+            const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
+            return dayMap[day] || '';
+        })
+        .join(',')}`;
+
+    const dtStart = `${startDate.replace(/-/g, '')}T${startTime.replace(':', '').padEnd(6, '0')}`;
+    const dtEnd = `${startDate.replace(/-/g, '')}T${endTime.replace(':', '').padEnd(6, '0')}`;
 
     return `
 BEGIN:VEVENT
-SUMMARY:${course}
+SUMMARY:${courseName}
 DESCRIPTION:Meeting at ${location}
 DTSTART;TZID=America/New_York:${dtStart}
 DTEND;TZID=America/New_York:${dtEnd}
@@ -111,30 +134,15 @@ END:VEVENT
 `.trim();
 }
 
-// -------------------------------------------------------------------------- //
-// Main function to process the JSON and create ICS file
-function processCourses(rows) {
-    const events = [];
+function generateICS(data) {
+    const enrolledCourses = filterEnrolledCourses(data);
 
-    rows.forEach((row) => {
-        const course = row.col1; // Adjust column index based on your data
-        const timeLocation = row.col7; // Adjust column index based on your data
-        const startDate = row.col10; // Adjust column index based on your data
-        const endDate = row.col11; // Adjust column index based on your data
+    const events = enrolledCourses.map(createICSEvent);
 
-        if (course && timeLocation && startDate && endDate) {
-            const event = createICSEvent(course, timeLocation, startDate, endDate);
-            events.push(event);
-        }
-    });
-
-    const icsContent = `
+    return `
 BEGIN:VCALENDAR
 VERSION:2.0
 ${events.join('\n')}
 END:VCALENDAR
 `.trim();
-
-    console.log('ICS generated:', icsContent);
-    return icsContent;
 }

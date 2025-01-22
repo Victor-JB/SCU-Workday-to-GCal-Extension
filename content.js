@@ -1,6 +1,12 @@
 
 /* Todos: how to error check / monitor health of app once deployed, pythonanywhere script
-to check if app is still working?? or Sentry? make sure it doesn't break...*/
+to check if app is still working?? or Sentry? make sure it doesn't break...
+
+BIG TODO: Make the handleDownloadClick function a lot more resistant to site changes, just like
+the other stuff; make it resistant, then if it still can't find button, give alert and show
+download instructions for doing so
+*/
+
 
 console.log("Script loaded and running...");
 
