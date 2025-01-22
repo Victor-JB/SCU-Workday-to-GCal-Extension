@@ -6,6 +6,7 @@
 */
 
 console.log("XLSX version:", XLSX.version);
+const cal = new ics(); // initializing ics package instance
 
 // -------------------------------------------------------------------------- //
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,14 +20,22 @@ document.addEventListener("DOMContentLoaded", () => {
             // console.log("File converted to JSON:", jsonData);
 
             try {
-                const icsContent = generateICS(jsonData);
-                console.log("Generated ICS!!!:", icsContent);
-                // To save as a file in a browser (if using a web app):
-                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+                // Generate ICS content as a string
+                const formatted_events = parseJsonToIcsEvents(jsonData);
+                console.log("Generated ICS!!!:", formatted_events);
+
+                const icsContent = cal.build();
+
+                // Use the ICS content for further processing
+                console.log("Generated ICS Content:", icsContent);
+
                 const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
+                link.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent);
                 link.download = 'courses.ics';
+                document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
+
 
             } catch (parseError) {
                 console.error("Error parsing JSON:", parseError);
@@ -34,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             // Send JSON to background.js
-            chrome.runtime.sendMessage({ action: "processJson", data: jsonData }, (response) => {
+            chrome.runtime.sendMessage({ action: "processJson", data: icsContent }, (response) => {
                 if (response.success) {
                     alert("Calendar events uploaded successfully!");
                 } else {
@@ -84,65 +93,47 @@ async function convertXlsxToJson(file) {
 }
 
 // -------------------------------------------------------------------------- //
-function filterEnrolledCourses(data) {
-    const enrolledSectionsIndex = data.findIndex(row => row.E === "Enrolled Sections");
-    const droppedSectionsIndex = data.findIndex(row => row.E === "Dropped/Withdrawn Sections");
+function parseJsonToIcsEvents(jsonData) {
+    const enrolledSectionsIndex = jsonData.findIndex(row => row.E === "Enrolled Sections");
+    const droppedSectionsIndex = jsonData.findIndex(row => row.E === "Dropped/Withdrawn Sections");
 
-    // Extract rows between "Enrolled Sections" and "Dropped/Withdrawn Sections"
-    const enrolledCourses = data.slice(enrolledSectionsIndex + 1, droppedSectionsIndex);
+    const enrolledCourses = jsonData
+        .slice(enrolledSectionsIndex + 1, droppedSectionsIndex)
+        .filter(row => row.I === "Registered");
 
-    // Filter only "Registered" courses
-    return enrolledCourses.filter(row => row.I === "Registered");
+    return enrolledCourses.forEach(course => {
+        const title = course.B;
+        const meetingPattern = course.H.split('|').map(part => part.trim());
+        const days = meetingPattern[0];
+        const times = meetingPattern[1];
+        const location = meetingPattern[2];
+        const [startTime, endTime] = times.split('-').map(time => time.trim());
+        const startDate = formatDateArray(course.K, startTime);
+        const endDate = formatDateArray(course.K, endTime);
+
+        const recurrenceRule = `FREQ=WEEKLY;UNTIL=${formatEndDate(course.L)};BYDAY=${mapDaysToIcs(days)}`;
+
+        cal.addEvent(title, `Instructor: ${course.J}`, location, startDate, endDate, { rrule: recurrenceRule });
+    });
 }
 
-function formatDate(serialDate) {
-    const epoch = new Date(1899, 11, 30).getTime(); // Excel epoch (adjusted)
+// -------------------------------------------------------------------------- //
+function formatDateArray(serialDate, time) {
+    const epoch = new Date(1899, 11, 30).getTime(); // Excel epoch
     const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
-    return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+    const [hour, minute] = time.split(':').map(Number);
+    return [date.getFullYear(), date.getMonth() + 1, date.getDate(), hour, minute];
 }
 
-function createICSEvent(course) {
-    const courseName = course.B;
-    const meetingPattern = course.H.split('|').map(part => part.trim());
-    const days = meetingPattern[0];
-    const times = meetingPattern[1];
-    const location = meetingPattern[2];
-    const startDate = formatDate(course.K);
-    const endDate = formatDate(course.L);
-
-    const [startTime, endTime] = times.split('-').map(time => time.trim());
-    const recurrenceRule = `RRULE:FREQ=WEEKLY;UNTIL=${endDate.replace(/-/g, '')}T235959Z;BYDAY=${days
-        .split(' ')
-        .map(day => {
-            const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
-            return dayMap[day] || '';
-        })
-        .join(',')}`;
-
-    const dtStart = `${startDate.replace(/-/g, '')}T${startTime.replace(':', '').padEnd(6, '0')}`;
-    const dtEnd = `${startDate.replace(/-/g, '')}T${endTime.replace(':', '').padEnd(6, '0')}`;
-
-    return `
-BEGIN:VEVENT
-SUMMARY:${courseName}
-DESCRIPTION:Meeting at ${location}
-DTSTART;TZID=America/New_York:${dtStart}
-DTEND;TZID=America/New_York:${dtEnd}
-${recurrenceRule}
-LOCATION:${location}
-END:VEVENT
-`.trim();
+// -------------------------------------------------------------------------- //
+function formatEndDate(serialDate) {
+    const epoch = new Date(1899, 11, 30).getTime();
+    const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
+    return date.toISOString().replace(/-/g, '').split('T')[0] + 'T235959Z';
 }
 
-function generateICS(data) {
-    const enrolledCourses = filterEnrolledCourses(data);
-
-    const events = enrolledCourses.map(createICSEvent);
-
-    return `
-BEGIN:VCALENDAR
-VERSION:2.0
-${events.join('\n')}
-END:VCALENDAR
-`.trim();
+// -------------------------------------------------------------------------- //
+function mapDaysToIcs(days) {
+    const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
+    return days.split(' ').map(day => dayMap[day]).join(',');
 }
