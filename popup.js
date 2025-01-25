@@ -15,43 +15,23 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         try {
-            // Convert the file to JSON
             const jsonData = await convertXlsxToJson(file);
-            // console.log("File converted to JSON:", jsonData);
 
-            try {
-                // Generate ICS content as a string
-                const formatted_events = parseJsonToIcsEvents(jsonData);
-                console.log("Generated ICS!!!:", formatted_events);
+            const events = parseJsonToGoogleEvents(jsonData);
+            console.log("The parsed events", events);
 
-                const icsContent = cal.build();
-
-                // Use the ICS content for further processing
-                console.log("Generated ICS Content:", icsContent);
-
-                const link = document.createElement('a');
-                link.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent);
-                link.download = 'courses.ics';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-
-            } catch (parseError) {
-                console.error("Error parsing JSON:", parseError);
-                return;
-            }
-
-            // Send JSON to background.js
-            chrome.runtime.sendMessage({ action: "processJson", data: icsContent }, (response) => {
-                if (response.success) {
-                    alert("Calendar events uploaded successfully!");
-                } else {
-                    console.error("Error uploading events:", response.error);
-                    alert("Failed to upload events.");
+            // Send formatted events to background.js
+            chrome.runtime.sendMessage(
+                { action: "uploadEventsToGoogleCalendar", events },
+                (response) => {
+                    if (response.success) {
+                        alert("Events uploaded successfully!");
+                    } else {
+                        console.error("Error uploading events:", response.error);
+                        alert("Failed to upload events.");
+                    }
                 }
-            });
-
+            );
         } catch (error) {
             console.error("Error processing file:", error);
             alert("An error occurred while processing the file.");
@@ -60,40 +40,32 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // -------------------------------------------------------------------------- //
-// Function to convert XLSX to JSON manually for protected sheets
+// Takes protected xlsx file and still converts it to useable json format
 async function convertXlsxToJson(file) {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
-    // console.log("Sheet name:", sheetName);
-    // console.log("Sheet range:", sheet['!ref']);
-    // console.log("Raw sheet content:", sheet);
-
     const rows = [];
-
-    // Iterate through all keys in the sheet
-    Object.keys(sheet).forEach((key) => {
-        if (!key.startsWith('!')) { // Ignore metadata keys like !ref, !merges
+    Object.keys(sheet).forEach(key => {
+        if (!key.startsWith("!")) {
             const cell = sheet[key];
-            const match = key.match(/([A-Z]+)(\d+)/); // Extract column and row
+            const match = key.match(/([A-Z]+)(\d+)/);
             if (match) {
                 const col = match[1];
                 const row = parseInt(match[2], 10);
 
-                if (!rows[row - 1]) rows[row - 1] = {}; // Create row if not exists
-                rows[row - 1][col] = cell.v; // Add cell value to the appropriate column
+                if (!rows[row - 1]) rows[row - 1] = {};
+                rows[row - 1][col] = cell.v;
             }
         }
     });
-
-    console.log("Manually extracted rows:", rows);
-    return rows.filter((row) => row); // Filter out empty rows
+    return rows.filter(row => row);
 }
 
 // -------------------------------------------------------------------------- //
-function parseJsonToIcsEvents(jsonData) {
+function parseJsonToGoogleEvents(jsonData) {
     const enrolledSectionsIndex = jsonData.findIndex(row => row.E === "Enrolled Sections");
     const droppedSectionsIndex = jsonData.findIndex(row => row.E === "Dropped/Withdrawn Sections");
 
@@ -101,39 +73,71 @@ function parseJsonToIcsEvents(jsonData) {
         .slice(enrolledSectionsIndex + 1, droppedSectionsIndex)
         .filter(row => row.I === "Registered");
 
-    return enrolledCourses.forEach(course => {
-        const title = course.B;
-        const meetingPattern = course.H.split('|').map(part => part.trim());
-        const days = meetingPattern[0];
-        const times = meetingPattern[1];
-        const location = meetingPattern[2];
-        const [startTime, endTime] = times.split('-').map(time => time.trim());
-        const startDate = formatDateArray(course.K, startTime);
-        const endDate = formatDateArray(course.K, endTime);
+    return enrolledCourses.map(course => {
+        try {
+            const title = course.B || "Untitled Course";
+            const meetingPattern = (course.H || "").split('|').map(part => part.trim());
+            const days = meetingPattern[0] || "";
+            const times = meetingPattern[1] || "";
+            const location = meetingPattern[2] || "Location TBD";
+            const [startTime, endTime] = times.split('-').map(time => time.trim());
+            const startDate = formatGoogleDate(course.K, startTime);
+            const endDate = formatGoogleDate(course.K, endTime);
 
-        const recurrenceRule = `FREQ=WEEKLY;UNTIL=${formatEndDate(course.L)};BYDAY=${mapDaysToIcs(days)}`;
-
-        cal.addEvent(title, `Instructor: ${course.J}`, location, startDate, endDate, { rrule: recurrenceRule });
-    });
+            return {
+                summary: title,
+                location,
+                description: `Instructor: ${course.J || "Unknown"}`,
+                start: {
+                    dateTime: startDate,
+                    timeZone: "America/New_York"
+                },
+                end: {
+                    dateTime: endDate,
+                    timeZone: "America/New_York"
+                },
+                recurrence: [
+                    `RRULE:FREQ=WEEKLY;UNTIL=${formatEndDate(course.L)};BYDAY=${mapDaysToGoogle(days)}`
+                ]
+            };
+        } catch (error) {
+            console.error(`Error parsing course: ${course.B}`, error);
+            return null; // Skip invalid courses
+        }
+    }).filter(event => event !== null); // Remove invalid events
 }
 
+
 // -------------------------------------------------------------------------- //
-function formatDateArray(serialDate, time) {
+function formatGoogleDate(serialDate, time) {
+    console.log("serialDate:", serialDate, "time:", time);
+
     const epoch = new Date(1899, 11, 30).getTime(); // Excel epoch
     const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
+
+    if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date derived from serialDate: ${serialDate}`);
+    }
+
     const [hour, minute] = time.split(':').map(Number);
-    return [date.getFullYear(), date.getMonth() + 1, date.getDate(), hour, minute];
+    if (isNaN(hour) || isNaN(minute)) {
+        throw new Error(`Invalid time format: ${time}`);
+    }
+
+    date.setHours(hour, minute, 0, 0);
+
+    return date.toISOString();
 }
 
 // -------------------------------------------------------------------------- //
 function formatEndDate(serialDate) {
     const epoch = new Date(1899, 11, 30).getTime();
     const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
-    return date.toISOString().replace(/-/g, '').split('T')[0] + 'T235959Z';
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
 // -------------------------------------------------------------------------- //
-function mapDaysToIcs(days) {
+function mapDaysToGoogle(days) {
     const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
     return days.split(' ').map(day => dayMap[day]).join(',');
 }

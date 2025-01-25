@@ -4,46 +4,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-
 // -------------------------------------------------------------------------- //
 /*
   To handle file upload message & file transfer in popup.js
 */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "processJson") {
+    if (message.action === "uploadEventsToGoogleCalendar") {
         const { events } = message;
-        console.log("Received events from popup.js:", events);
 
+        gapi.load("client:auth2", () => {
+            gapi.client
+                .init({
+                    apiKey: "<YOUR_API_KEY>",
+                    clientId: "<YOUR_CLIENT_ID>",
+                    discoveryDocs: [
+                        "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"
+                    ],
+                    scope: "https://www.googleapis.com/auth/calendar.events"
+                })
+                .then(() => gapi.auth2.getAuthInstance().signIn())
+                .then(() => {
+                    const promises = events.map(event =>
+                        gapi.client.calendar.events.insert({
+                            calendarId: "primary",
+                            resource: event
+                        })
+                    );
 
-        sendResponse({ status: "success", message: "Events received and processed in content.js" });
+                    return Promise.all(promises);
+                })
+                .then(() => {
+                    console.log("All events uploaded successfully.");
+                    sendResponse({ success: true });
+                })
+                .catch(error => {
+                    if (error.status === 401) {
+                        console.error("Token expired. Please reauthenticate.");
+                        sendResponse({ success: false, error: "Authentication required. Please sign in again." });
+                    } else if (error.status === 400) {
+                        console.error("Invalid event data:", error.result.error.message);
+                        sendResponse({ success: false, error: `Invalid event data: ${error.result.error.message}` });
+                    } else {
+                        console.error("Failed to upload events:", error);
+                        sendResponse({ success: false, error: "Failed to upload events. Please try again." });
+                    }
+                });
+        });
+
+        // Keep the message channel open for async response
+        return true;
     }
 });
-
-// -------------------------------------------------------------------------- //
-function sendToGoogleCalendar(events) {
-    gapi.load('client:auth2', () => {
-        gapi.client.init({
-            apiKey: '<YOUR_API_KEY>',
-            clientId: '<YOUR_CLIENT_ID>',
-            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
-            scope: "https://www.googleapis.com/auth/calendar.events"
-        }).then(() => {
-            return gapi.auth2.getAuthInstance().signIn();
-        }).then(() => {
-            events.forEach(event => {
-                gapi.client.calendar.events.insert({
-                    calendarId: 'primary',
-                    resource: event,
-                }).then(response => {
-                    console.log("Event created:", response);
-                }).catch(err => {
-                    console.error("Error creating event:", err.message);
-                    alert(`Error creating event: ${event.summary}`);
-                });
-            });
-        }).catch(err => {
-            console.error("Google API Initialization Error:", err.message);
-            alert("Failed to connect to Google Calendar. Please try again.");
-        });
-    });
-}
