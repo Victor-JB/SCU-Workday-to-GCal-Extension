@@ -12,6 +12,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "uploadEventsToGoogleCalendar") {
         const { events } = message;
 
+        // Load and initialize Google API client
         gapi.load("client:auth2", () => {
             gapi.client
                 .init({
@@ -24,14 +25,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 })
                 .then(() => gapi.auth2.getAuthInstance().signIn())
                 .then(() => {
-                    const promises = events.map(event =>
+                    // Upload events to Google Calendar
+                    const uploadPromises = events.map(event =>
                         gapi.client.calendar.events.insert({
                             calendarId: "primary",
                             resource: event
                         })
                     );
 
-                    return Promise.all(promises);
+                    return Promise.all(uploadPromises);
                 })
                 .then(() => {
                     console.log("All events uploaded successfully.");

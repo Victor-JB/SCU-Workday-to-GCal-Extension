@@ -4,7 +4,7 @@
   "description": "Easily add Workday courses to Google Calendar",
   "author": "SCU Students Against Workday",
   "version": "1.0",
-  "permissions": ["activeTab", "scripting", "tabs"],
+  "permissions": ["activeTab", "scripting", "tabs", "identity", "identity.email"],
   "host_permissions": ["https://*.myworkday.com/scu/*"],
   "content_scripts": [
     {
@@ -19,6 +19,10 @@
             "48": "test-icon.png",
             "128": "test-icon.png"
         }
+  },
+  "oauth2": {
+    "client_id": "<YOUR_CLIENT_ID>",
+    "scopes": ["https://www.googleapis.com/auth/calendar.events"]
   },
   "background": {
     "service_worker": "background.js"

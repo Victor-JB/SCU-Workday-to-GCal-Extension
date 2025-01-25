@@ -1,200 +1,114 @@
 [
     {
-        "A": "View My Courses"
+        "summary": "ENGL 2A - Critical Thinking and Writing II",
+        "location": "Rm 134 Vari Hall",
+        "description": "Instructor: Olivier Bochettaz",
+        "start": {
+            "dateTime": "2025-01-06T17:15:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-06T18:20:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY=MO,WE,FR"
+        ]
     },
     {
-        "A": "Academic Record",
-        "B": "Computer Science and Engineering Major (BS)"
+        "summary": "MATH 14 - Calculus and Analytic Geometry IV",
+        "location": "Rm 206 O'Connor Hall",
+        "description": "Instructor: Mehdi Ahmadi",
+        "start": {
+            "dateTime": "2025-01-06T21:00:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-06T22:05:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY=MO,WE,FR"
+        ]
     },
     {
-        "A": "Calendar View"
+        "summary": "CSEN 20L - Embedded Systems Laboratory",
+        "location": "Rm 112 Heafey Hall",
+        "description": "Instructor: Michael Schimpf",
+        "start": {
+            "dateTime": "2025-01-07T01:30:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-07T04:15:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY=TU"
+        ]
     },
     {
-        "A": "Edit Registration",
-        "B": "Edit Registration"
+        "summary": "CSEN 20 - Introduction to Embedded Systems",
+        "location": "Rm 125 Heafey Hall",
+        "description": "Instructor: Younghyun Cho",
+        "start": {
+            "dateTime": "2025-01-06T16:00:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-06T17:05:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY=MO,WE,FR"
+        ]
     },
     {
-        "A": "My Enrolled Courses"
+        "summary": "ENGR 1L - Introduction to Engineering Lab",
+        "location": "RM 2302 SCDI",
+        "description": "Instructor: Stephen Bass",
+        "start": {
+            "dateTime": "2025-01-06T17:15:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-06T20:00:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY="
+        ]
     },
     {
-        "A": "",
-        "B": "",
-        "C": "",
-        "D": "",
-        "E": "Enrolled Sections"
+        "summary": "ENGR 1 - Introduction to Engineering",
+        "location": "RM 2302 SCDI",
+        "description": "Instructor: Stephen Bass",
+        "start": {
+            "dateTime": "2025-01-06T19:45:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-06T20:50:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY=WE"
+        ]
     },
     {
-        "B": "Course Listing",
-        "C": "Units",
-        "D": "Grading Basis",
-        "E": "Section",
-        "F": "Instructional Format",
-        "G": "Delivery Mode",
-        "H": "Meeting Patterns",
-        "I": "Registration Status",
-        "J": "Instructor",
-        "K": "Start Date",
-        "L": "End Date"
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - ENGL 2A - Critical Thinking and Writing II - Winter 2025 Quarter",
-        "B": "ENGL 2A - Critical Thinking and Writing II",
-        "C": 4,
-        "D": "Graded",
-        "E": "ENGL 2A-3 - Critical Thinking and Writing II (-)",
-        "F": "Lecture",
-        "G": "In-Person",
-        "H": "M W F | 9:15 AM - 10:20 AM | Rm 134 Vari Hall",
-        "I": "Registered",
-        "J": "Olivier Bochettaz",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - MATH 14 - Calculus and Analytic Geometry IV - Winter 2025 Quarter",
-        "B": "MATH 14 - Calculus and Analytic Geometry IV",
-        "C": 4,
-        "D": "Graded",
-        "E": "MATH 14-1 - Calculus and Analytic Geometry IV",
-        "F": "Lecture",
-        "G": "In-Person",
-        "H": "M W F | 1:00 PM - 2:05 PM | Rm 206 O'Connor Hall",
-        "I": "Registered",
-        "J": "Mehdi Ahmadi",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - CSEN 20L - Embedded Systems Laboratory - Winter 2025 Quarter",
-        "B": "CSEN 20L - Embedded Systems Laboratory",
-        "C": 1,
-        "D": "Graded",
-        "E": "CSEN 20L-1 - Embedded Systems Laboratory",
-        "F": "Laboratory",
-        "G": "In-Person",
-        "H": "T | 5:30 PM - 8:15 PM | Rm 112 Heafey Hall",
-        "I": "Registered",
-        "J": "Michael Schimpf",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - CSEN 20 - Introduction to Embedded Systems - Winter 2025 Quarter",
-        "B": "CSEN 20 - Introduction to Embedded Systems",
-        "C": 4,
-        "D": "Graded",
-        "E": "CSEN 20-1 - Introduction to Embedded Systems (-)",
-        "F": "Lecture",
-        "G": "In-Person",
-        "H": "M W F | 8:00 AM - 9:05 AM | Rm 125 Heafey Hall",
-        "I": "Registered",
-        "J": "Younghyun Cho",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - ENGR 1L - Introduction to Engineering Lab - Winter 2025 Quarter",
-        "B": "ENGR 1L - Introduction to Engineering Lab",
-        "C": 1,
-        "D": "Graded",
-        "E": "ENGR 1L-6 - Introduction to Engineering Lab (-)",
-        "F": "Laboratory",
-        "G": "In-Person",
-        "H": "Th | 9:15 AM - 12:00 PM | RM 2302 SCDI",
-        "I": "Registered",
-        "J": "Stephen Bass",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - ENGR 1 - Introduction to Engineering - Winter 2025 Quarter",
-        "B": "ENGR 1 - Introduction to Engineering",
-        "C": 1,
-        "D": "Graded",
-        "E": "ENGR 1-4 - Introduction to Engineering (-)",
-        "F": "Lecture",
-        "G": "In-Person",
-        "H": "W | 11:45 AM - 12:50 PM | RM 2302 SCDI",
-        "I": "Registered",
-        "J": "Stephen Bass",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - MATH 53 - Linear Algebra - Winter 2025 Quarter",
-        "B": "MATH 53 - Linear Algebra",
-        "C": 4,
-        "D": "Graded",
-        "E": "MATH 53-2 - Linear Algebra (-)",
-        "F": "Lecture",
-        "G": "In-Person",
-        "H": "M W F | 2:15 PM - 3:20 PM | Rm 163 Graham Hall",
-        "I": "Registered",
-        "J": "Nicolette Meshkat",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "My Dropped/Withdrawn Courses"
-    },
-    {
-        "A": "",
-        "B": "",
-        "C": "",
-        "D": "",
-        "E": "Dropped/Withdrawn Sections"
-    },
-    {
-        "B": "Course Listing",
-        "C": "Units",
-        "D": "Grading Basis",
-        "E": "Section",
-        "F": "Instructional Format",
-        "G": "Delivery Mode",
-        "H": "Meeting Patterns",
-        "I": "Registration Status",
-        "J": "Instructor",
-        "K": "Start Date",
-        "L": "End Date"
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - ENGL 2A - Critical Thinking and Writing II - Winter 2025 Quarter",
-        "B": "ENGL 2A - Critical Thinking and Writing II",
-        "C": "4",
-        "D": "Graded",
-        "E": "ENGL 2A-2 - Critical Thinking and Writing II (-)",
-        "F": "Lecture",
-        "G": "In-Person",
-        "H": "M W F | 1:00 PM - 2:05 PM | Rm 210 O'Connor Hall",
-        "I": "Unregistered",
-        "J": "Olivier Bochettaz",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Victor Joulin-Batejat - Computer Science and Engineering Department/Undergraduate (BS) - 09/10/2024 - Active - CSEN 79L - Object-Oriented Programming and Data Structures Laboratory - Winter 2025 Quarter",
-        "B": "CSEN 79L - Object-Oriented Programming and Data Structures Laboratory",
-        "C": "1",
-        "D": "Graded",
-        "E": "CSEN 79L-2 - Object-Oriented Programming and Data Structures Laboratory",
-        "F": "Laboratory",
-        "G": "In-Person",
-        "H": "Th | 2:15 PM - 5:00 PM | Rm 106 Heafey Hall",
-        "I": "Unregistered",
-        "J": "Farokh Eskafi",
-        "K": 45663,
-        "L": 45737
-    },
-    {
-        "A": "Enrolled Units",
-        "B": 19
-    },
-    {
-        "A": "Full-time",
-        "B": "Load Status"
-    },
-    {
-        "A": "Label Override",
-        "B": "Winter 2025 Quarter"
+        "summary": "MATH 53 - Linear Algebra",
+        "location": "Rm 163 Graham Hall",
+        "description": "Instructor: Nicolette Meshkat",
+        "start": {
+            "dateTime": "2025-01-06T22:15:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "end": {
+            "dateTime": "2025-01-06T23:20:00.000Z",
+            "timeZone": "America/New_York"
+        },
+        "recurrence": [
+            "RRULE:FREQ=WEEKLY;UNTIL=20250321T080000Z;BYDAY=MO,WE,FR"
+        ]
     }
 ]

@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const events = parseJsonToGoogleEvents(jsonData);
             console.log(typeof event, "events:", events);
 
+            // Send formatted events to background.js
             chrome.runtime.sendMessage(
                 { action: "uploadEventsToGoogleCalendar", events },
                 (response) => {
@@ -35,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             );
+          
         } catch (error) {
             console.error("Error processing file:", error);
             alert(error.message || "An error occurred while processing the file.");
