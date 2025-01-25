@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const events = parseJsonToGoogleEvents(jsonData);
+            console.log(typeof event, "events:", events);
 
             chrome.runtime.sendMessage(
                 { action: "uploadEventsToGoogleCalendar", events },
@@ -135,9 +136,21 @@ function formatGoogleDate(serialDate, time) {
         throw new Error(`Invalid date derived from serialDate: ${serialDate}`);
     }
 
-    const [hour, minute] = time.split(':').map(Number);
-    if (isNaN(hour) || isNaN(minute)) {
+    // Parse time string (e.g., "9:15 AM" or "1:00 PM")
+    const timeMatch = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (!timeMatch) {
         throw new Error(`Invalid time format: ${time}`);
+    }
+
+    let [_, hour, minute, period] = timeMatch;
+    hour = parseInt(hour, 10);
+    minute = parseInt(minute, 10);
+
+    // Convert to 24-hour format
+    if (period.toUpperCase() === "PM" && hour !== 12) {
+        hour += 12;
+    } else if (period.toUpperCase() === "AM" && hour === 12) {
+        hour = 0;
     }
 
     date.setHours(hour, minute, 0, 0);
