@@ -12,29 +12,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "uploadEventsToGoogleCalendar") {
         const { events } = message;
 
-        // Load and initialize Google API client
-        gapi.load("client:auth2", () => {
-            gapi.client
-                .init({
-                    apiKey: "<YOUR_API_KEY>",
-                    clientId: "<YOUR_CLIENT_ID>",
-                    discoveryDocs: [
-                        "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"
-                    ],
-                    scope: "https://www.googleapis.com/auth/calendar.events"
-                })
-                .then(() => gapi.auth2.getAuthInstance().signIn())
-                .then(() => {
-                    // Upload events to Google Calendar
-                    const uploadPromises = events.map(event =>
-                        gapi.client.calendar.events.insert({
-                            calendarId: "primary",
-                            resource: event
-                        })
-                    );
+        // Fetch auth token
+        chrome.identity.getAuthToken({ interactive: true }, (token) => {
+            if (chrome.runtime.lastError || !token) {
+                console.error("Error fetching auth token:", chrome.runtime.lastError);
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+                return;
+            }
 
-                    return Promise.all(uploadPromises);
+            console.log("Auth token received:", token);
+
+            // Upload events to Google Calendar
+            const uploadPromises = events.map((event) =>
+                fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(event),
                 })
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to create event: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+            );
+
+            Promise.all(uploadPromises)
                 .then(() => {
                     console.log("All events uploaded successfully.");
                     sendResponse({ success: true });

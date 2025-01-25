@@ -21,7 +21,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("Invalid file format. Please upload a valid course schedule XLSX file.");
             }
 
-            const events = parseJsonToGoogleEvents(jsonData);
+            // Validate events before sending to background.js
+            const events = parseJsonToGoogleEvents(jsonData).filter((event) => {
+                try {
+                    return validateEvent(event);
+                } catch (error) {
+                    console.error(`Error validating event: ${error.message}`, event);
+                    return false; // Skip invalid events
+                }
+            });
             console.log(typeof event, "events:", events);
 
             // Send formatted events to background.js
@@ -36,13 +44,28 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             );
-          
+
         } catch (error) {
             console.error("Error processing file:", error);
             alert(error.message || "An error occurred while processing the file.");
         }
     });
 });
+
+// -------------------------------------------------------------------------- //
+function validateEvent(event) {
+    if (!event.summary || !event.start || !event.end) {
+        throw new Error(`Invalid event format: Missing required fields (summary, start, end)`);
+    }
+    if (!event.start.dateTime || !event.start.timeZone) {
+        throw new Error(`Invalid event start: ${JSON.stringify(event.start)}`);
+    }
+    if (!event.end.dateTime || !event.end.timeZone) {
+        throw new Error(`Invalid event end: ${JSON.stringify(event.end)}`);
+    }
+    return true;
+}
+
 
 // -------------------------------------------------------------------------- //
 // Validate if the JSON has the required structure
