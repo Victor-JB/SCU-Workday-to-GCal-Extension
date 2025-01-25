@@ -17,10 +17,12 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const jsonData = await convertXlsxToJson(file);
 
-            const events = parseJsonToGoogleEvents(jsonData);
-            console.log("The parsed events", events);
+            if (!isValidXlsx(jsonData)) {
+                throw new Error("Invalid file format. Please upload a valid course schedule XLSX file.");
+            }
 
-            // Send formatted events to background.js
+            const events = parseJsonToGoogleEvents(jsonData);
+
             chrome.runtime.sendMessage(
                 { action: "uploadEventsToGoogleCalendar", events },
                 (response) => {
@@ -28,40 +30,54 @@ document.addEventListener("DOMContentLoaded", () => {
                         alert("Events uploaded successfully!");
                     } else {
                         console.error("Error uploading events:", response.error);
-                        alert("Failed to upload events.");
+                        alert(`Failed to upload events: ${response.error}`);
                     }
                 }
             );
         } catch (error) {
             console.error("Error processing file:", error);
-            alert("An error occurred while processing the file.");
+            alert(error.message || "An error occurred while processing the file.");
         }
     });
 });
 
 // -------------------------------------------------------------------------- //
+// Validate if the JSON has the required structure
+function isValidXlsx(jsonData) {
+    const requiredHeaders = ["Course Listing", "Units", "Grading Basis", "Meeting Patterns"];
+    return jsonData.some(row =>
+        Object.values(row).some(value => requiredHeaders.includes(value))
+    );
+}
+
+// -------------------------------------------------------------------------- //
 // Takes protected xlsx file and still converts it to useable json format
 async function convertXlsxToJson(file) {
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
 
-    const rows = [];
-    Object.keys(sheet).forEach(key => {
-        if (!key.startsWith("!")) {
-            const cell = sheet[key];
-            const match = key.match(/([A-Z]+)(\d+)/);
-            if (match) {
-                const col = match[1];
-                const row = parseInt(match[2], 10);
+        const rows = [];
+        Object.keys(sheet).forEach(key => {
+            if (!key.startsWith("!")) {
+                const cell = sheet[key];
+                const match = key.match(/([A-Z]+)(\d+)/);
+                if (match) {
+                    const col = match[1];
+                    const row = parseInt(match[2], 10);
 
-                if (!rows[row - 1]) rows[row - 1] = {};
-                rows[row - 1][col] = cell.v;
+                    if (!rows[row - 1]) rows[row - 1] = {};
+                    rows[row - 1][col] = cell.v;
+                }
             }
-        }
-    });
-    return rows.filter(row => row);
+        });
+        return rows.filter(row => row);
+    } catch (error) {
+        alert("Error parsing the XLSX file. Please ensure it's in the correct format.")
+        throw new Error("Error parsing the XLSX file. Please ensure it's in the correct format.");
+    }
 }
 
 // -------------------------------------------------------------------------- //
