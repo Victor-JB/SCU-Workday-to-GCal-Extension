@@ -6,6 +6,7 @@
 */
 
 console.log("XLSX version:", XLSX.version);
+const cal = new ics(); // initializing ics package instance
 
 // -------------------------------------------------------------------------- //
 document.addEventListener("DOMContentLoaded", () => {
@@ -14,127 +15,183 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         try {
-            // Convert the file to JSON
             const jsonData = await convertXlsxToJson(file);
-            console.log("File converted to JSON:", jsonData);
 
-            try {
-                const formatted_ics = processCourses(jsonData);
-            } catch (parseError) {
-                console.error("Error parsing JSON:", parseError);
-                return;
+            if (!isValidXlsx(jsonData)) {
+                throw new Error("Invalid file format. Please upload a valid course schedule XLSX file.");
             }
 
-            // Send JSON to background.js
-            chrome.runtime.sendMessage({ action: "processJson", data: jsonData }, (response) => {
-                if (response.success) {
-                    alert("Calendar events uploaded successfully!");
-                } else {
-                    console.error("Error uploading events:", response.error);
-                    alert("Failed to upload events.");
+            // Validate events before sending to background.js
+            const events = parseJsonToGoogleEvents(jsonData).filter((event) => {
+                try {
+                    return validateEvent(event);
+                } catch (error) {
+                    console.error(`Error validating event: ${error.message}`, event);
+                    return false; // Skip invalid events
                 }
             });
+            console.log(typeof event, "events:", events);
+
+            // Send formatted events to background.js
+            chrome.runtime.sendMessage(
+                { action: "uploadEventsToGoogleCalendar", events },
+                (response) => {
+                    if (response.success) {
+                        alert("Events uploaded successfully!");
+                    } else {
+                        console.error("Error uploading events:", response.error);
+                        alert(`Failed to upload events: ${response.error}`);
+                    }
+                }
+            );
 
         } catch (error) {
             console.error("Error processing file:", error);
-            alert("An error occurred while processing the file.");
+            alert(error.message || "An error occurred while processing the file.");
         }
     });
 });
 
 // -------------------------------------------------------------------------- //
-// Function to convert XLSX to JSON manually for protected sheets
+function validateEvent(event) {
+    if (!event.summary || !event.start || !event.end) {
+        throw new Error(`Invalid event format: Missing required fields (summary, start, end)`);
+    }
+    if (!event.start.dateTime || !event.start.timeZone) {
+        throw new Error(`Invalid event start: ${JSON.stringify(event.start)}`);
+    }
+    if (!event.end.dateTime || !event.end.timeZone) {
+        throw new Error(`Invalid event end: ${JSON.stringify(event.end)}`);
+    }
+    return true;
+}
+
+
+// -------------------------------------------------------------------------- //
+// Validate if the JSON has the required structure
+function isValidXlsx(jsonData) {
+    const requiredHeaders = ["Course Listing", "Units", "Grading Basis", "Meeting Patterns"];
+    return jsonData.some(row =>
+        Object.values(row).some(value => requiredHeaders.includes(value))
+    );
+}
+
+// -------------------------------------------------------------------------- //
+// Takes protected xlsx file and still converts it to useable json format
 async function convertXlsxToJson(file) {
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
 
-    console.log("Sheet name:", sheetName);
-    console.log("Sheet range:", sheet['!ref']);
-    console.log("Raw sheet content:", sheet);
+        const rows = [];
+        Object.keys(sheet).forEach(key => {
+            if (!key.startsWith("!")) {
+                const cell = sheet[key];
+                const match = key.match(/([A-Z]+)(\d+)/);
+                if (match) {
+                    const col = match[1];
+                    const row = parseInt(match[2], 10);
 
-    const rows = [];
-
-    // Iterate through all keys in the sheet
-    Object.keys(sheet).forEach((key) => {
-        if (!key.startsWith('!')) { // Ignore metadata keys like !ref, !merges
-            const cell = sheet[key];
-            const match = key.match(/([A-Z]+)(\d+)/); // Extract column and row
-            if (match) {
-                const col = match[1];
-                const row = parseInt(match[2], 10);
-
-                if (!rows[row - 1]) rows[row - 1] = {}; // Create row if not exists
-                rows[row - 1][col] = cell.v; // Add cell value to the appropriate column
+                    if (!rows[row - 1]) rows[row - 1] = {};
+                    rows[row - 1][col] = cell.v;
+                }
             }
-        }
-    });
-
-    console.log("Manually extracted rows:", rows);
-    return rows.filter((row) => row); // Filter out empty rows
+        });
+        return rows.filter(row => row);
+    } catch (error) {
+        alert("Error parsing the XLSX file. Please ensure it's in the correct format.")
+        throw new Error("Error parsing the XLSX file. Please ensure it's in the correct format.");
+    }
 }
 
 // -------------------------------------------------------------------------- //
-// Helper function to format date into ICS-friendly format
-function formatTime(dateString, timeString) {
-    const [hour, minute] = timeString.split(':').map((t) => parseInt(t, 10));
-    const date = new Date(dateString);
+function parseJsonToGoogleEvents(jsonData) {
+    const enrolledSectionsIndex = jsonData.findIndex(row => row.E === "Enrolled Sections");
+    const droppedSectionsIndex = jsonData.findIndex(row => row.E === "Dropped/Withdrawn Sections");
+
+    const enrolledCourses = jsonData
+        .slice(enrolledSectionsIndex + 1, droppedSectionsIndex)
+        .filter(row => row.I === "Registered");
+
+    return enrolledCourses.map(course => {
+        try {
+            const title = course.B || "Untitled Course";
+            const meetingPattern = (course.H || "").split('|').map(part => part.trim());
+            const days = meetingPattern[0] || "";
+            const times = meetingPattern[1] || "";
+            const location = meetingPattern[2] || "Location TBD";
+            const [startTime, endTime] = times.split('-').map(time => time.trim());
+            const startDate = formatGoogleDate(course.K, startTime);
+            const endDate = formatGoogleDate(course.K, endTime);
+
+            return {
+                summary: title,
+                location,
+                description: `Instructor: ${course.J || "Unknown"}`,
+                start: {
+                    dateTime: startDate,
+                    timeZone: "America/New_York"
+                },
+                end: {
+                    dateTime: endDate,
+                    timeZone: "America/New_York"
+                },
+                recurrence: [
+                    `RRULE:FREQ=WEEKLY;UNTIL=${formatEndDate(course.L)};BYDAY=${mapDaysToGoogle(days)}`
+                ]
+            };
+        } catch (error) {
+            console.error(`Error parsing course: ${course.B}`, error);
+            return null; // Skip invalid courses
+        }
+    }).filter(event => event !== null); // Remove invalid events
+}
+
+
+// -------------------------------------------------------------------------- //
+function formatGoogleDate(serialDate, time) {
+    console.log("serialDate:", serialDate, "time:", time);
+
+    const epoch = new Date(1899, 11, 30).getTime(); // Excel epoch
+    const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
+
+    if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date derived from serialDate: ${serialDate}`);
+    }
+
+    // Parse time string (e.g., "9:15 AM" or "1:00 PM")
+    const timeMatch = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (!timeMatch) {
+        throw new Error(`Invalid time format: ${time}`);
+    }
+
+    let [_, hour, minute, period] = timeMatch;
+    hour = parseInt(hour, 10);
+    minute = parseInt(minute, 10);
+
+    // Convert to 24-hour format
+    if (period.toUpperCase() === "PM" && hour !== 12) {
+        hour += 12;
+    } else if (period.toUpperCase() === "AM" && hour === 12) {
+        hour = 0;
+    }
+
     date.setHours(hour, minute, 0, 0);
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0];
-}
 
-// Helper function to map day abbreviations for ICS recurrence rules
-function mapDaysToICS(days) {
-    const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
-    return days.split(' ').map((day) => dayMap[day]).join(',');
-}
-
-// Helper function to create ICS event format
-function createICSEvent(course, timeLocation, startDate, endDate) {
-    const [days, times, location] = timeLocation.split('|').map((part) => part.trim());
-    const [startTime, endTime] = times.split('-').map((time) => time.trim());
-
-    const dtStart = formatTime(startDate, startTime);
-    const dtEnd = formatTime(startDate, endTime);
-    const recurrenceRule = `RRULE:FREQ=WEEKLY;UNTIL=${endDate.replace(/-/g, '')}T235959Z;BYDAY=${mapDaysToICS(days)}`;
-
-    return `
-BEGIN:VEVENT
-SUMMARY:${course}
-DESCRIPTION:Meeting at ${location}
-DTSTART;TZID=America/New_York:${dtStart}
-DTEND;TZID=America/New_York:${dtEnd}
-${recurrenceRule}
-LOCATION:${location}
-END:VEVENT
-`.trim();
+    return date.toISOString();
 }
 
 // -------------------------------------------------------------------------- //
-// Main function to process the JSON and create ICS file
-function processCourses(rows) {
-    const events = [];
+function formatEndDate(serialDate) {
+    const epoch = new Date(1899, 11, 30).getTime();
+    const date = new Date(epoch + serialDate * 24 * 60 * 60 * 1000);
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
 
-    rows.forEach((row) => {
-        const course = row.col1; // Adjust column index based on your data
-        const timeLocation = row.col7; // Adjust column index based on your data
-        const startDate = row.col10; // Adjust column index based on your data
-        const endDate = row.col11; // Adjust column index based on your data
-
-        if (course && timeLocation && startDate && endDate) {
-            const event = createICSEvent(course, timeLocation, startDate, endDate);
-            events.push(event);
-        }
-    });
-
-    const icsContent = `
-BEGIN:VCALENDAR
-VERSION:2.0
-${events.join('\n')}
-END:VCALENDAR
-`.trim();
-
-    console.log('ICS generated:', icsContent);
-    return icsContent;
+// -------------------------------------------------------------------------- //
+function mapDaysToGoogle(days) {
+    const dayMap = { M: 'MO', T: 'TU', W: 'WE', R: 'TH', F: 'FR', S: 'SA', U: 'SU' };
+    return days.split(' ').map(day => dayMap[day]).join(',');
 }
