@@ -7,15 +7,20 @@
     <link rel="stylesheet" href="style.css">
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/ics.min.js"></script>
-    <script src="popup.js"></script>
+    <script src="popup.js" defer></script>
 </head>
 <body>
-    <div class="container mt-3" style="width: 400vm;">
-        <h2 class="text-center">SCU Workday --> Google Cal Integration</h2>
-    </div>
-    <div id="drop-area">
-      <p>Drag and drop your "View_My_Courses.xlsx" file or</p>
-      <input type="file" id="fileUpload" accept=".xlsx" />
+    <div class="container mt-3" style="max-width: 400px;">
+        <h2 class="text-center">SCU Workday → Google Calendar Integration</h2>
+        <p class="text-center">Upload your <strong>"View_my_courses.xlsx"</strong> file to add your courses to Google Calendar.</p>
+
+        <div class="drop-area text-center" id="drop-area">
+            <p>Drag & Drop your file here or</p>
+            <input type="file" id="fileUpload" accept=".xlsx" hidden>
+            <label for="fileUpload" class="btn btn-primary">Browse Files</label>
+        </div>
+
+        <div id="status-message" class="alert alert-info mt-3 hidden"></div>
     </div>
 </body>
 </html>
