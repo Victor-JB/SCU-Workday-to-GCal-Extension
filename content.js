@@ -24,13 +24,13 @@ function afterDOMLoaded() {
     // Inject fallback CSS
     injectFallbackCSS();
 
-    const bar = injectBackupBar();
-    if (!bar) {
-      chrome.runtime.sendMessage({ action: "showPopup" });
+    // Attempt to add the real button first
+    if (!monitorDOMChanges()) {
+        // If it fails, then inject backup bar
+        if (!injectBackupBar()) {
+            chrome.runtime.sendMessage({ action: "showPopup" });
+        }
     }
-
-    // Monitor DOM changes
-    monitorDOMChanges();
 }
 
 // -------------------------------------------------------------------------- //
@@ -42,104 +42,85 @@ function findElementByAttribute(attribute, value, root = document) {
 // -------------------------------------------------------------------------- //
 // Function to add a MutationObserver for dynamic DOM updates
 function monitorDOMChanges() {
-  const observeTarget = document.body;
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
-        // Recheck and inject the button if necessary
-        const buttonBar = findElementByAttribute('data-automation-id', 'buttonBar');
-        const customBar = document.getElementById("custom-bar");
+    const observeTarget = document.body;
+    let buttonInjected = false;
 
-        if (buttonBar) {
-          if (customBar) {
-              // Hide the custom bar if the button is found
-              customBar.remove();
-              console.log("Button found, hiding custom bar.");
-          }
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'childList') {
+                const buttonBar = findElementByAttribute('data-automation-id', 'buttonBar');
 
-            console.log("Button bar found or re-rendered. Ensuring new button is present...");
-            if (!document.getElementById("wd-MultiParameterButton-56$newbutton")) {
-                injectNewButton(buttonBar);
+                if (buttonBar) {
+                    if (!document.getElementById("wd-MultiParameterButton-56$newbutton")) {
+                        injectNewButton(buttonBar);
+                        buttonInjected = true;
+                    }
+                }
             }
-        } else if (customBar) {
-            // Handle missing buttonBar by injecting a fallback button
-            console.warn("buttonBar not found. Displaying fallback button if possible...");
-            customBar.classList.add("visible");
-        } else {
-          console.error("Neither button bar nor custom bar was found...");
-        }
-      }
+        });
     });
-  });
 
-  try {
-      observer.observe(observeTarget, {
-          childList: true,
-          subtree: true,
-      });
-      console.log("MutationObserver started.");
-  } catch (error) {
-      console.error("Failed to start the MutationObserver:", error);
-  }
+    try {
+        observer.observe(observeTarget, {
+            childList: true,
+            subtree: true,
+        });
+        console.log("MutationObserver started.");
+    } catch (error) {
+        console.error("Failed to start the MutationObserver:", error);
+    }
+
+    return buttonInjected;
 }
 
 // -------------------------------------------------------------------------- //
 // Function to dynamically inject a button into a button bar
 function injectNewButton(buttonBar) {
     try {
-        // Clone an existing button to ensure style and structure match
         const existingButton = buttonBar.querySelector('button');
         if (!existingButton) throw new Error("No existing button found!");
 
-        // Clone the existing button
         const newButton = existingButton.cloneNode(true);
-
-        // Update the cloned button's attributes
         newButton.id = "wd-MultiParameterButton-56$newbutton";
         newButton.title = "Add to Google Calendar";
         newButton.querySelector('span:last-child').textContent = "Add to Google Calendar";
-
-        // Add a click event listener to the new button
         newButton.addEventListener("click", handleDownloadClick);
 
-        // Create a new list item to wrap the button
         const newListItem = document.createElement("li");
         newListItem.className = existingButton.closest('li').className;
         newListItem.appendChild(newButton);
-
-        // Append the new list item to the button bar
         buttonBar.appendChild(newListItem);
 
         console.log("New button successfully added!");
+        return true;
     } catch (error) {
         console.error("Error injecting new button:", error);
+        return false;
     }
 }
 
 // -------------------------------------------------------------------------- //
+// Function to inject backup bar if needed
 function injectBackupBar() {
     try {
-        // Locate the app bar container
         const appBarContainer = document.getElementById("app-chrome-container");
         if (!appBarContainer) {
             console.warn("App bar container not found.");
-            return;
+            return false;
         }
 
-        // Check if the bar already exists
         let newBar = document.getElementById("custom-bar");
         if (!newBar) {
-            // Create the bar if it doesn't exist
             newBar = document.createElement("div");
             newBar.id = "custom-bar";
-            newBar.textContent = "Custom Bar - Button Missing"; // Placeholder text
+            newBar.textContent = "Custom Bar - Button Missing";
             appBarContainer.parentNode.insertBefore(newBar, appBarContainer.nextSibling);
             console.log("Custom bar injected below the app bar.");
         }
-
-        return newBar;
+        return true;
     } catch (error) {
         console.error("Error injecting the custom bar:", error);
+        return false;
     }
 }
 
@@ -160,16 +141,15 @@ function injectFallbackCSS() {
             z-index: 999;
             color: #333;
             font-size: 16px;
-            visibility: hidden; /* Initially hidden */
+            visibility: hidden;
         }
         #custom-bar.visible {
-            visibility: visible; /* Make the bar visible when needed */
+            visibility: visible;
         }
     `;
     document.head.appendChild(style);
     console.log("Fallback CSS injected.");
 }
-
 
 // -------------------------------------------------------------------------- //
 /*
@@ -178,7 +158,6 @@ function injectFallbackCSS() {
 // make more resistant to breaking site changes
 function handleDownloadClick() {
     console.log("Custom download button clicked. Searching for Excel button...");
-
     const excelButton = document.querySelector('div[data-automation-id="excelIconButton"]');
 
     if (excelButton) {
